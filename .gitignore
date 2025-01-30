@@ -60,5 +60,4 @@ htmlcov/
 .ipynb_checkpoints
 
 # Specific project ignores
-video/
 docs/report.md

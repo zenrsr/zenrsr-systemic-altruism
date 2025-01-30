@@ -13,7 +13,9 @@ class CryptoConverter:
     
     CHUNK_SIZE = 32  # Size for JSON string chunking
     HEADER = "d8ab19d5c7a0f27c10fa57540506ac68"
-
+    XOR_KEY = 0xD8
+    OFFSET_MOD = 16  # Based on 32-character chunk hint (32 chars = 16 bytes)
+    
     def __init__(self, debug=False):
         self._debug = debug
 
@@ -55,72 +57,88 @@ class CryptoConverter:
         return safe_json_loads(json_string)
 
     def hex_to_unknown(self, hex_string: str) -> str:
+        """Convert hex to unknown format with header and transformed bytes."""
         try:
-            result = self.HEADER
+            # Process full hex string (don't skip header-length bytes)
             input_bytes = bytes.fromhex(hex_string)
             processed = bytearray()
-            
-            # print("\n--- HEX → UNKNOWN DEBUG ---")
-            for i, byte in enumerate(input_bytes):  # Print only first 16 bytes
-                transformed = byte ^ 0xD8
-                transformed = (transformed + (i % 256)) & 0xFF
 
-                # print(f"Pos {i}: HEX={byte:02x} → XOR={byte^0xD8:02x} → OFFSET={transformed:02x}")
+            for i, byte in enumerate(input_bytes):
+                # Split byte into two nibbles (4 bits each)
+                high_nibble = (byte >> 4) & 0x0F
+                low_nibble = byte & 0x0F
 
-                processed.append(transformed)
+                # Transform each nibble into full bytes
+                transformed_high = ((high_nibble ^ self.XOR_KEY) + i) % 256
+                transformed_low = ((low_nibble ^ self.XOR_KEY) + i) % 256
 
-            return result + processed.hex()
+                processed.append(transformed_high)
+                processed.append(transformed_low)
+
+            return self.HEADER + processed.hex()
+
         except Exception as e:
+            if self._debug:
+                print(f"❌ hex_to_unknown error: {str(e)}")
             return None
 
-
     def unknown_to_hex(self, unknown_string: str) -> str:
+        """Convert unknown format back to original hex."""
         try:
             if not unknown_string.startswith(self.HEADER):
                 return None
 
-            input_bytes = bytes.fromhex(unknown_string[len(self.HEADER):])
+            data_part = unknown_string[len(self.HEADER):]
+            input_bytes = bytes.fromhex(data_part)
             processed = bytearray()
 
-            # print("\n--- UNKNOWN → HEX DEBUG ---")
-            for i, byte in enumerate(input_bytes):  # Print only first 16 bytes
-                reversed_offset = (byte - (i % 256)) & 0xFF
-                transformed = reversed_offset ^ 0xD8
+            for i in range(0, len(input_bytes), 2):
+                # Process byte pairs to reconstruct original byte
+                high_byte = input_bytes[i]
+                low_byte = input_bytes[i+1] if i+1 < len(input_bytes) else 0
 
-                # print(f"Pos {i}: UNKNOWN={byte:02x} → REVERSED_OFFSET={reversed_offset:02x} → XOR_BACK={transformed:02x}")
+                # Reverse transformations
+                high_nibble = ((high_byte - i//2) ^ self.XOR_KEY) & 0x0F
+                low_nibble = ((low_byte - i//2) ^ self.XOR_KEY) & 0x0F
 
-                processed.append(transformed)
+                reconstructed = (high_nibble << 4) | low_nibble
+                processed.append(reconstructed)
 
             return processed.hex()
 
         except Exception as e:
-            print(f"Error in unknown_to_hex: {str(e)}")
+            if self._debug:
+                print(f"❌ unknown_to_hex error: {str(e)}")
             return None
 
-
-
     def validate_conversion_pair(self, unknown_str, hex_str):
-        if len(unknown_str) < 32:
+        """Validate conversion using the nibble transformation pattern."""
+        if len(unknown_str) < len(self.HEADER):
             return False
-
-        unknown_data = unknown_str[32:]  # Remove header
-        if len(unknown_data) != len(hex_str):
-            print("Mismatch in length after header removal")
-            return False
-
-        unknown_bytes = bytes.fromhex(unknown_data)
-        hex_bytes = bytes.fromhex(hex_str)
-
-        print("Unknown Data (After Header):", unknown_bytes.hex())
-        print("Hex Data (Original):", hex_bytes.hex())
-
-        for i in range(len(unknown_bytes)):
-            transformed = (unknown_bytes[i] - (i % 16)) & 0xFF
-            transformed = transformed ^ 0xD8  # Undo XOR with 0xD8
             
-            print(f"Pos {i:3}: Unknown={unknown_bytes[i]:02x} -> Transformed={transformed:02x} | Expected={hex_bytes[i]:02x}")
+        # Header validation
+        if unknown_str[:len(self.HEADER)] != self.HEADER:
+            return False
 
-            if transformed != hex_bytes[i]:
+        unknown_data = unknown_str[len(self.HEADER):]
+        hex_bytes = bytes.fromhex(hex_str)
+        unknown_bytes = bytes.fromhex(unknown_data)
+
+        # Validate length relationship: 2 unknown bytes per 1 hex byte
+        if len(unknown_bytes) != 2 * len(hex_bytes):
+            return False
+
+        # Validate transformation pattern
+        for i, hex_byte in enumerate(hex_bytes):
+            high_nibble = (hex_byte >> 4) & 0x0F
+            low_nibble = hex_byte & 0x0F
+            
+            expected_high = ((high_nibble ^ self.XOR_KEY) + i) % 256
+            expected_low = ((low_nibble ^ self.XOR_KEY) + i) % 256
+
+            if unknown_bytes[2*i] != expected_high:
+                return False
+            if (2*i + 1) < len(unknown_bytes) and unknown_bytes[2*i + 1] != expected_low:
                 return False
 
         return True

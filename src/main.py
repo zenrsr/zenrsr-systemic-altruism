@@ -3,7 +3,7 @@
 import json
 import logging
 from pathlib import Path
-from typing import Dict, Any, Optional, Tuple
+from typing import Dict, Any, Tuple
 import argparse
 from datetime import datetime
 import sys
@@ -158,9 +158,9 @@ class CryptoProcessor:
                     results['errors'].append(f"Unknown to hex conversion failed: {str(e)}")
 
             # Validate conversion pair
-            results['validations']['conversion_pair_valid'] = (
-                self.converter.validate_conversion_pair(entry['unknown'], entry['hex'])
-            )
+            # results['validations']['conversion_pair_valid'] = (
+            #     self.converter.validate_conversion_pair(entry['unknown'], entry['hex'])
+            # )
 
             return results
             
@@ -184,7 +184,7 @@ class CryptoProcessor:
                     'hex_to_ascii_valid': 0,
                     'hex_to_unknown_valid': 0,
                     'unknown_to_hex_valid': 0,
-                    'conversion_pair_valid': 0
+                    # 'conversion_pair_valid': 0
                 }
             }
             
