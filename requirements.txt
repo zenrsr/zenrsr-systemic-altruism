@@ -1,0 +1,4 @@
+# requirements.txt
+pytest==7.4.0
+typing-extensions==4.7.1
+python-json-logger==2.0.7

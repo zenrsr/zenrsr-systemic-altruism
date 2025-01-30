@@ -1,0 +1,64 @@
+# Python-specific ignores
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environment
+venv/
+env/
+.env/
+.venv/
+
+# Distribution / packaging
+dist/
+build/
+*.egg-info/
+*.egg
+
+# Logs and databases
+*.log
+*.sqlite3
+crypto_processor.log
+
+# IDE-specific files
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# OS-generated files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Output and temporary files
+output/
+tmp/
+temp/
+
+# Sensitive or local configuration
+.env
+*.env
+.secrets
+
+# Large data files (optional, adjust as needed)
+*.json
+!data/crypto.json  # Keep this specific JSON file
+
+# Compiled files
+*.pyc
+*.pyo
+*.pyd
+
+# Testing and coverage
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# Specific project ignores
+video/
+docs/report.md
